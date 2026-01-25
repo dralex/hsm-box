@@ -65,15 +65,12 @@ enum Event {
  * The state handlers - THE MAIN LOGIC IS HERE
  * ----------------------------------------------------------------------------- */
 
-int error_blink;
-
 void on_error(void* arg)
 {
 	const char* s = (const char*)arg;
 	if (s != NULL) {
 		hal_display_error(s);
 	}
-	error_blink = PLAYER_RED;
 	hal_led_light(PLAYER_RED, 1);
 	hal_led_light(PLAYER_GREEN, 0);
 }
@@ -127,7 +124,9 @@ SMState on_error_sec(void* arg)
 
 SMState on_setup_left(void* arg)
 {
-	if (time_mode <= 5 * 60) {
+	if (time_mode <= 3 * 60) {
+		time_mode = 60;
+	} else if (time_mode == 5 * 60) {
 		time_mode = 3 * 60;
 	} else {
 		time_mode -= 5 * 60;
@@ -138,7 +137,9 @@ SMState on_setup_left(void* arg)
 
 SMState on_setup_right(void* arg)
 {
-	if (time_mode == 3 * 60) {
+	if (time_mode == 60) {
+		time_mode = 3 * 60;
+	} elseif (time_mode == 3 * 60) {
 		time_mode = 5 * 60;
 	} else if (time_mode <= 3600 - 5 * 60 - 1) {
 		time_mode += 5 * 60;
@@ -318,12 +319,6 @@ void loop()
 	while (1) {
 		int pressed = hal_buttons_check();
 		int timeout = hal_timer_check();
-		if (timeout) {
-			DEBUG_("MS: ");
-			DEBUG_(millis());
-			DEBUG_(" Timeout: ");
-			DEBUG(timeout);
-		}
 		process_events(pressed | timeout);
 		delay(100);
 	}
