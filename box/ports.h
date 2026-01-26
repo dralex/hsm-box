@@ -32,5 +32,6 @@
 #define PORT_BUTTON_OK    7
 #define PORT_BUTTON_LEFT  8
 #define PORT_BUTTON_RIGHT 9
+#define PORT_AUDIO_POWER  10
 
 #endif

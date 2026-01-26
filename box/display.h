@@ -63,6 +63,12 @@ void hal_display_setup(int t, int clear)
 	lcd.print(" min");
 }
 
+void hal_display_game_start()
+{
+	lcd.clear();
+	lcd.print("Starting MATCH..");
+}
+
 void hal_display_game(uint32_t t, int red, int green, int player, int clear)
 {
 	char buffer[6];
@@ -92,6 +98,12 @@ void hal_display_game(uint32_t t, int red, int green, int player, int clear)
 	lcd.setCursor(11, 1);
 	time_to_buffer(buffer, green);
 	lcd.print(buffer);
+}
+
+void hal_display_final_start()
+{
+	lcd.clear();
+	lcd.print("MATCH is OVER!!!");
 }
 
 void hal_display_final(int winner, int red, int green)
