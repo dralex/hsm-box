@@ -65,7 +65,7 @@ enum Event {
  * The state handlers - THE MAIN LOGIC IS HERE
  * ----------------------------------------------------------------------------- */
 
-void on_error(void* arg)
+int on_error(void* arg)
 {
 	const char* s = (const char*)arg;
 	if (s != NULL) {
@@ -73,35 +73,42 @@ void on_error(void* arg)
 	}
 	hal_led_light(PLAYER_RED, 1);
 	hal_led_light(PLAYER_GREEN, 0);
+	return 0;
 }
 
 int time_mode;
 
-void on_setup_init(void* arg)
+int on_setup_init(void* arg)
 {
 	hal_led_light(PLAYER_RED, 0);
 	hal_led_light(PLAYER_GREEN, 0);	
 	hal_display_setup(time_mode, 1);
+	return 0;
 }
 
 int red, green;
 int current_player;
 
-void on_game_wait_init(void* arg)
+int on_game_wait_init(void* arg)
 {
 	DEBUG_("Starting game on ");
 	DEBUG_(time_mode);
 	DEBUG(" sec.");
+	hal_display_game_start();
+	hal_audio_play_start();
 	red = green = 0;
 	current_player = -1;
 	hal_timer_start(time_mode);
 	hal_display_game(hal_timer_left_sec(), red, green, current_player, 1);
+	return 0;
 }
 
 int winner;
 
-void on_game_end_init(void* arg)
+int on_game_end_init(void* arg)
 {
+	hal_display_final_start();
+	hal_audio_play_final();
 	winner = -1;
 	if (red > green) {
 		winner = PLAYER_RED;
@@ -113,16 +120,17 @@ void on_game_end_init(void* arg)
 		hal_led_light(PLAYER_GREEN, 1);
 	}	
 	hal_display_final(winner, red, green);
+	return 0;
 }
 
-SMState on_error_sec(void* arg)
+int on_error_sec(void* arg)
 {
 	hal_led_toggle(PLAYER_RED);
 	hal_led_toggle(PLAYER_GREEN);
-	return stError;
+	return 0;
 }
 
-SMState on_setup_left(void* arg)
+int on_setup_left(void* arg)
 {
 	if (time_mode <= 3 * 60) {
 		time_mode = 60;
@@ -132,95 +140,89 @@ SMState on_setup_left(void* arg)
 		time_mode -= 5 * 60;
 	}
 	hal_display_setup(time_mode, 0);
-	return stSetup;
+	return 0;
 }
 
-SMState on_setup_right(void* arg)
+int on_setup_right(void* arg)
 {
 	if (time_mode == 60) {
 		time_mode = 3 * 60;
-	} elseif (time_mode == 3 * 60) {
+	} else if (time_mode == 3 * 60) {
 		time_mode = 5 * 60;
 	} else if (time_mode <= 3600 - 5 * 60 - 1) {
 		time_mode += 5 * 60;
 	}
 	hal_display_setup(time_mode, 0);
-	return stSetup;	
+	return 0;	
 }
 
-SMState on_setup_ok(void* arg)
-{
-	return stGameWait;
-}
-
-SMState on_game_sec(void* arg)
+int on_game_sec(void* arg)
 {
 	hal_display_game(hal_timer_left_sec(), red, green, current_player, 0);	
-	return stGameWait;	
+	return 0;	
 }
 
-SMState on_game_red(void* arg)
+int on_game_red(void* arg)
 {
 	current_player = PLAYER_RED;
 	hal_led_light(PLAYER_RED, 1);
 	hal_led_light(PLAYER_GREEN, 0);	
 	hal_display_game(hal_timer_left_sec(), red, green, current_player, 0);	
-	return stGameRed;
+	return 0;
 }
 
-SMState on_game_green(void* arg)
+int on_game_green(void* arg)
 {
 	current_player = PLAYER_GREEN;
 	hal_led_light(PLAYER_RED, 0);
 	hal_led_light(PLAYER_GREEN, 1);	
 	hal_display_game(hal_timer_left_sec(), red, green, current_player, 0);	
-	return stGameGreen;
+	return 0;
 }
 
-SMState on_game_red_sec(void* arg)
+int on_game_red_sec(void* arg)
 {
 	red += 1;
 	hal_display_game(hal_timer_left_sec(), red, green, current_player, 0);	
-	return stGameRed;	
+	return 0;	
 }
 
-SMState on_game_green_sec(void* arg)
+int on_game_green_sec(void* arg)
 {
 	green += 1;
 	hal_display_game(hal_timer_left_sec(), red, green, current_player, 0);	
-	return stGameGreen;
+	return 0;
 }
 
-SMState on_game_timer(void* arg)
+int on_game_timer(void* arg)
 {
 	DEBUG("Timer event!");
-	return stGameEnd;
+	return 0;
 }
 
-SMState on_restart(void* arg)
+int on_restart(void* arg)
 {
 	DEBUG("Restart on OK event!");
-	return stSetup;
+	return 0;
 }
 
-SMState on_end_timer(void* arg)
+int on_end_timer(void* arg)
 {
 	if (winner >= PLAYER_RED) {
 		hal_led_toggle(winner);
 	}
-	return stGameEnd;
+	return 0;
 }
 
 /* -----------------------------------------------------------------------------
  * The state machine processing structs & functions
  * ----------------------------------------------------------------------------- */
 
-typedef void (*EntryHandler)(void* arg);
-typedef SMState (*TransHandler)(void* arg);
+typedef int (*Handler)(void* arg);
 
 typedef struct _Entry {
-	SMState      state;
-	EntryHandler handler;
+	SMState state;
+	Handler handler;
 } Entry;
 
 Entry entries[] = {
@@ -232,45 +234,34 @@ Entry entries[] = {
 size_t entries_count = sizeof(entries) / sizeof(Entry);
 
 typedef struct _Transition {
-	SMState      state;
-	Event        event;
-	TransHandler handler;
+	SMState source_state;
+	Event   event;
+	SMState target_state;
+	Handler handler;
 } Transition;
 
 /* The transition graph */
 Transition transitions[] = {
-	{stError,     evTimer1Sec,   &on_error_sec},
-	{stSetup,     evButtonLeft,  &on_setup_left},
-	{stSetup,     evButtonRight, &on_setup_right},
-	{stSetup,     evButtonOK,    &on_setup_ok},
-	{stGameWait,  evTimer,       &on_game_timer},
-	{stGameWait,  evTimer1Sec,   &on_game_sec},
-	{stGameWait,  evButtonRed,   &on_game_red},
-	{stGameWait,  evButtonGreen, &on_game_green},
-	{stGameRed,   evTimer,       &on_game_timer},
-	{stGameRed,   evTimer1Sec,   &on_game_red_sec},
-	{stGameRed,   evButtonGreen, &on_game_green},	
-	{stGameGreen, evTimer,       &on_game_timer},
-	{stGameGreen, evTimer1Sec,   &on_game_green_sec},	
-	{stGameGreen, evButtonRed,   &on_game_red},	
-	{stGameEnd,   evButtonOK,    &on_restart},
-	{stGameEnd,   evTimer1Sec,   &on_end_timer},
+	{stError,     evTimer1Sec,   stError,     &on_error_sec},
+	{stSetup,     evButtonLeft,  stSetup,     &on_setup_left},
+	{stSetup,     evButtonRight, stSetup,     &on_setup_right},
+	{stSetup,     evButtonOK,    stGameWait,  NULL},
+	{stGameWait,  evTimer,       stGameEnd,   &on_game_timer},
+	{stGameWait,  evTimer1Sec,   stGameWait,  &on_game_sec},
+	{stGameWait,  evButtonRed,   stGameRed,   &on_game_red},
+	{stGameWait,  evButtonGreen, stGameGreen, &on_game_green},
+	{stGameRed,   evTimer,       stGameEnd,   &on_game_timer},
+	{stGameRed,   evTimer1Sec,   stGameRed,   &on_game_red_sec},
+	{stGameRed,   evButtonGreen, stGameGreen, &on_game_green},	
+	{stGameGreen, evTimer,       stGameEnd,   &on_game_timer},
+	{stGameGreen, evTimer1Sec,   stGameGreen, &on_game_green_sec},	
+	{stGameGreen, evButtonRed,   stGameRed,   &on_game_red},	
+	{stGameEnd,   evButtonOK,    stSetup,     &on_restart},
+	{stGameEnd,   evTimer1Sec,   stGameEnd,   &on_end_timer},
 };
 size_t transitions_count = sizeof(transitions) / sizeof(Transition);
 
 SMState the_state;
-
-void set_state(SMState s, void* arg = NULL)
-{
-	DEBUG_("New state: ");
-	DEBUG(int(s));
-	the_state = s;
-	for (size_t i = 0; i < entries_count; i++) {
-		if (entries[i].state == s) {
-			(*(entries[i].handler))(arg);
-		}
-	}
-}
 
 char error_string[17];
 
@@ -282,11 +273,37 @@ void set_error(char* format, ...)
 	va_end(args);
 }
 
+void set_state(SMState s, void* arg = NULL)
+{
+	DEBUG_("New state: ");
+	DEBUG(int(s));
+	the_state = s;
+	for (size_t i = 0; i < entries_count; i++) {
+		if (entries[i].state == s) {
+			int result = (*(entries[i].handler))(arg);
+			if (s != stError && result) { // avoid looping
+				DEBUG("Event entry returned error");
+				set_state(stError, error_string);
+				return ;
+			}
+		}
+	}
+}
+
 void process_events(int events)
 {
 	for (size_t i = 0; i < transitions_count; i++) {
-		if (transitions[i].state == the_state && (transitions[i].event & events)) {
-			SMState new_state = (*(transitions[i].handler))(NULL);
+		if (transitions[i].source_state == the_state && (transitions[i].event & events)) {
+			SMState new_state = transitions[i].target_state;
+			Handler handler = transitions[i].handler;
+			int result = 0;
+			if (handler) {
+				result = (*handler)(NULL);
+			}
+			if (result) {
+				DEBUG("Transition trigger returned error");
+				new_state = stError;
+			}
 			if (new_state == stError) {
 				set_state(stError, error_string);
 				return ;
