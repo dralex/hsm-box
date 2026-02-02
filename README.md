@@ -4,6 +4,14 @@ The simple game timer box based on Arduino and HSM logic.
 
 The code is distributed under the GNU Public License (version 3).
 
+## The Software
+
+The box is programmed by the code base on this HSM diagram:
+
+![HSM diagram](diagrams/hsm.png)
+
+The simple SM dispatcher for Arduino was implemented to support this logic.
+
 ## The Hardware
 
 The box contains buttons, LEDs, small LCD, and simple sound player:
@@ -12,7 +20,7 @@ The box contains buttons, LEDs, small LCD, and simple sound player:
 
 The hardware is based on Arduino controller:
 
-![Outside view](hardware/box-inside.jpg)
+![Inside view](hardware/box-inside.jpg)
 
 The electric circuit diagram will be published soon.
 
