@@ -6,7 +6,7 @@ The code is distributed under the GNU Public License (version 3).
 
 ## The Software
 
-The box is programmed by the code base on this HSM diagram:
+The box is programmed by the code based on this HSM diagram:
 
 ![HSM diagram](diagrams/hsm.png)
 
